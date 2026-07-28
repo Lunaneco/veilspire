@@ -1,5 +1,8 @@
 # Veilspire
 
+[![CI](https://github.com/Lunaneco/veilspire/actions/workflows/ci.yml/badge.svg)](https://github.com/Lunaneco/veilspire/actions/workflows/ci.yml)
+[![Deploy GitHub Pages](https://github.com/Lunaneco/veilspire/actions/workflows/pages.yml/badge.svg)](https://github.com/Lunaneco/veilspire/actions/workflows/pages.yml)
+
 Veilspire is an original browser-based, open-world magical action RPG built
 with Three.js. Its world, characters, effects, textures, and audio are
 generated at runtime; the repository does not include third-party game assets.
@@ -8,6 +11,8 @@ Created by Lunaneco.
 
 This is an independent project and is not affiliated with or endorsed by any
 existing game, film, book, publisher, or entertainment franchise.
+
+**[Play Veilspire in your browser](https://lunaneco.github.io/veilspire/)**
 
 ## Gameplay trailer
 
@@ -88,8 +93,9 @@ private keys. Install exactly the dependency versions recorded in
 
 The included workflow builds and deploys `dist/` from the `main` branch. In the
 repository's **Settings → Pages**, select **GitHub Actions** as the publishing
-source. Relative asset paths are configured so project pages work under a
-repository subpath.
+source. Do not select **Deploy from a branch**: that option serves the
+unbundled source files and the game will not load correctly. Relative asset
+paths are configured so project pages work under a repository subpath.
 
 ## Contributing
 
