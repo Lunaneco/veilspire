@@ -90,6 +90,12 @@ karma.onTierChange = (tier, prev) => {
   if (tier.name !== 'clear' && tier.name !== 'outlawed') hud.toast(`Standing: ${tier.label.toLowerCase()}`);
   else if (tier.name === 'clear' && prev !== 'clear') hud.toast('Your name is clean again');
 };
+player.onRespawn = () => {
+  karma.resetInfamy();
+  spells.lockTarget = null;
+  engine.input.releaseVirtualKeys();
+  hud.banner('RETURNED TO THE GATE', 'Infamy cleared — level, talents and gear retained');
+};
 const collectibles = new Collectibles(engine.scene, world, player, spells, audio);
 hud.collectibles = collectibles;
 const props = new PropManager(engine.scene, world);

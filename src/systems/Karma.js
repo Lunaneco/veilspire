@@ -7,9 +7,8 @@
 // down. Small cruelties can be worked off.
 //
 // Past OUTLAW_AT they cannot. Crossing that line latches `outlawed` and saves
-// it: from then on the students and villagers draw on sight, for good. The
-// point of the system is that there is a line, and that it is possible to
-// cross it without meaning to and not be able to take it back.
+// it: from then on the students and villagers draw on sight until the player
+// is defeated and returns to the academy gate.
 
 const KEY = 'veilspire.karma.v1';
 const OUTLAW_AT = 60;
@@ -26,7 +25,7 @@ export class Karma {
   constructor() {
     this.infamy = 0;
     this.virtue = 0;
-    // The worst you have ever been, which atonement does not erase. Two
+    // The worst you have been in this life, which atonement does not erase. Two
     // mutually exclusive spells hang off this: the bright one is strongest for
     // a run with no stain on it at all, so washing infamy off afterwards is
     // not the same as never having earned it.
@@ -48,15 +47,15 @@ export class Karma {
   get virtue01() { return Math.min(1, this.virtue / 100); }
 
   // 1.0 only for a run that never hurt anyone; the first cruelty dents it
-  // permanently and it never comes back.
+  // for the current life and does not return through atonement.
   get purity() { return Math.max(0, 1 - this.peakInfamy / OUTLAW_AT); }
   // How far down the other road you have gone.
   get sin01() { return this.outlawed ? 1 : Math.min(1, this.peakInfamy / OUTLAW_AT); }
   // How close the next stroke of cruelty is to being unforgivable
   get toOutlaw01() { return this.outlawed ? 1 : Math.min(1, this.infamy / OUTLAW_AT); }
 
-  // Hostility is the latched flag, never the live gauge: once the valley has
-  // decided you are a danger, walking it back is not on the table.
+  // Hostility is the latched flag, never the live gauge. It is cleared only by
+  // defeat and respawn, not by ordinary atonement.
   get hostile() { return this.outlawed; }
 
   sin(amount, reason = '') {
@@ -106,10 +105,10 @@ export class Karma {
     this._save();
   }
 
-  _save() {
+  _save(force = false) {
     // Throttled: _settle runs every frame while atoning
     this._saveTimer = (this._saveTimer ?? 0) + 1;
-    if (this._saveTimer % 60 && !this.outlawed) return;
+    if (!force && this._saveTimer % 60 && !this.outlawed) return;
     try {
       localStorage.setItem(KEY, JSON.stringify({
         infamy: this.infamy, virtue: this.virtue,
@@ -127,6 +126,19 @@ export class Karma {
       this.peakInfamy = raw.peakInfamy ?? this.infamy;
       this.outlawed = !!raw.outlawed;
     } catch { /* corrupt save — start clean */ }
+  }
+
+  // Death clears only the bad-deed track. Virtue is earned progression and
+  // survives alongside XP, talents, gear, inventory and quest state.
+  resetInfamy() {
+    const prev = this._tier;
+    this.infamy = 0;
+    this.peakInfamy = 0;
+    this.outlawed = false;
+    this._tier = this.tier.name;
+    this._save(true);
+    if (prev !== this._tier) this.onTierChange?.(this.tier, prev);
+    this.onChange?.(this);
   }
 
   reset() {

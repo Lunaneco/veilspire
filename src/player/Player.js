@@ -20,6 +20,12 @@ const DODGE_SPEED = 12.5;
 const DODGE_TIME = 0.48;
 const COYOTE = 0.12;
 
+export const PLAYER_START = Object.freeze({
+  x: 21,
+  z: 37,
+  facing: Math.PI,
+});
+
 export class Player {
   constructor(scene, world, input, camera) {
     this.world = world;
@@ -29,10 +35,11 @@ export class Player {
     this.model = new WizardModel({}, { broom: true });
     scene.add(this.model.root);
 
-    this.position = new THREE.Vector3(21, 0, 37);
+    this.position = new THREE.Vector3(PLAYER_START.x, 0, PLAYER_START.z);
     this.position.y = world.groundHeight(this.position.x, this.position.z);
+    this.startPosition = this.position.clone();
     this.velocity = new THREE.Vector3();
-    this.facing = Math.PI; // face the academy (north) at spawn
+    this.facing = PLAYER_START.facing; // face the academy (north) at spawn
     this.grounded = true;
     this.coyoteTimer = 0;
     this.dodgeTimer = 0;
@@ -322,10 +329,41 @@ export class Player {
     return true;
   }
 
+  respawnAtStart() {
+    // Death only resets the temporary combat and movement state. Progression,
+    // talents, equipment, inventory and world state live in their own systems
+    // and intentionally remain untouched.
+    this.health = this.maxHealth;
+    this.mana = this.maxMana;
+    this.position.copy(this.startPosition);
+    this.position.y = this.world.groundHeight(
+      this.startPosition.x,
+      this.startPosition.z,
+      this.startPosition.y,
+    );
+    this.velocity.set(0, 0, 0);
+    this.facing = PLAYER_START.facing;
+    this.grounded = true;
+    this.coyoteTimer = 0;
+    this.dodgeTimer = 0;
+    this.flying = false;
+    this.flightLockout = 0;
+    this.climbing = false;
+    this.climbTimer = 0;
+    this.swimming = false;
+    this.model.root.position.copy(this.position);
+    this.model.root.rotation.y = this.facing;
+    this.onRespawn?.();
+  }
+
   takeDamage(amount) {
     if (this.isDodging) return; // dodge i-frames
     this.health = Math.max(0, this.health - amount);
     this.onDamaged?.(amount);
+    if (this.health <= 0) {
+      this.respawnAtStart();
+      return;
+    }
     // A hit breaks the spell that holds you up: you drop, and have to get
     // back on the ground before you can take off again. Flight stops being
     // a way to ignore a fight.
@@ -338,13 +376,6 @@ export class Player {
       this.velocity.y = result.velocityY;
       this.flightLockout = result.flightLockout;
       this.onFlightBroken?.();
-    }
-    if (this.health <= 0) {
-      // Soft death: restore at spawn-ish spot with half health
-      this.health = this.maxHealth * 0.5;
-      this.position.set(21, 0, 37);
-      this.position.y = this.world.groundHeight(21, 37);
-      this.velocity.set(0, 0, 0);
     }
   }
 
