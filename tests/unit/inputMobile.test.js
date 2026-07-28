@@ -23,13 +23,24 @@ function installDomGlobals() {
 
 let Input;
 let stickDirections;
+let isCompactViewport;
 before(async () => {
   installDomGlobals();
   ({ Input } = await import('../../src/core/Input.js'));
   ({ stickDirections } = await import('../../src/ui/MobileControls.js'));
+  ({ isCompactViewport } = await import('../../src/util/deviceProfile.js'));
 });
 
 describe('Input mobile injectors', () => {
+  it('selects the touch layout for compact phone-shaped viewports', () => {
+    assert.equal(isCompactViewport(390, 844), true);
+    assert.equal(isCompactViewport(844, 390), true);
+    assert.equal(isCompactViewport(320, 568), true);
+    assert.equal(isCompactViewport(568, 320), true);
+    assert.equal(isCompactViewport(1280, 720), false);
+    assert.equal(isCompactViewport(768, 1024), false);
+  });
+
   it('hold and release drive movement without keyboard events', () => {
     const input = new Input(fakeDom());
     input.hold('KeyW');

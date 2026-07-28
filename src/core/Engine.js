@@ -6,6 +6,7 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { GradingPass } from './GradingPass.js';
 import { Input } from './Input.js';
 import { OPTIMIZED, opt } from '../util/perfFlags.js';
+import { prefersTouchLayout } from '../util/deviceProfile.js';
 
 // Owns renderer, composer, camera, and the fixed-update main loop. Game
 // systems register with addSystem({update(dt), lateUpdate?(dt)}).
@@ -13,10 +14,7 @@ import { OPTIMIZED, opt } from '../util/perfFlags.js';
 export class Engine {
   constructor(container) {
     this.container = container;
-    const forcedMobile = new URLSearchParams(window.location.search).get('mobile') === '1';
-    this.mobileMode = forcedMobile
-      || window.matchMedia?.('(pointer: coarse)').matches
-      || (navigator.maxTouchPoints || 0) > 0;
+    this.mobileMode = prefersTouchLayout();
     // No MSAA: everything is drawn into the composer's own render target and
     // only a fullscreen quad ever reaches the canvas, so a multisampled
     // backbuffer would cost memory and bandwidth to antialias nothing.

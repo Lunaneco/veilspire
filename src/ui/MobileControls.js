@@ -1,16 +1,13 @@
 // Touch controls share the keyboard-shaped Input API so gameplay systems do
 // not need separate mobile branches.
 
+import { prefersTouchLayout } from '../util/deviceProfile.js';
+
 const MOVE_KEYS = ['KeyW', 'KeyS', 'KeyA', 'KeyD'];
 const HELD_KEYS = [...MOVE_KEYS, 'ShiftLeft', 'KeyX'];
 
 export function isTouchDevice() {
-  if (typeof window === 'undefined') return false;
-  const forced = new URLSearchParams(window.location.search).get('mobile') === '1';
-  return forced
-    || 'ontouchstart' in window
-    || (navigator.maxTouchPoints || 0) > 0
-    || window.matchMedia?.('(pointer: coarse)').matches;
+  return prefersTouchLayout();
 }
 
 export function stickDirections(nx, ny, deadZone = 0.28) {
