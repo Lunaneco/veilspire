@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { terrainHeight } from '../world/Terrain.js';
 import { WispFiend } from './Enemies.js';
+import { resolveBossHit, canStartFinisher, burnDps } from './combatMath.js';
 
 // The Hollow Warden — a bark-and-stone colossus that guards the deep wood.
 // Phase 1: slams and summons wisp adds that flank while it holds the centre.
@@ -127,14 +128,23 @@ export class HollowWarden {
   takeHit(damage, fromDir, knockbackForce = 0) {
     if (this.dead || this.finisherPlaying) return;
     if (this.state === 'dormant') this.state = 'fight';
-    const armour = this.frozenTimer > 0 ? 1 : 0.7;
-    this.hp -= damage * armour;
+    const next = resolveBossHit({
+      hp: this.hp,
+      maxHp: this.maxHp,
+      phase: this.phase,
+      frozenTimer: this.frozenTimer,
+      finisherReady: this.finisherReady,
+      dead: this.dead,
+      finisherPlaying: this.finisherPlaying,
+      state: this.state,
+    }, damage);
+    this.hp = next.hp;
     this.flashTimer = 0.14;
     this.knockback.addScaledVector(fromDir, knockbackForce * 0.08);
     if (damage > 30) this.staggerTimer = Math.max(this.staggerTimer, 0.35);
 
-    if (this.phase === 1 && this.hp <= this.maxHp * 0.5) this.enterPhaseTwo();
-    if (!this.finisherReady && this.hp <= this.maxHp * 0.08) {
+    if (next.enteredPhaseTwo) this.enterPhaseTwo();
+    if (next.openedFinisher) {
       this.finisherReady = true;
       this.state = 'kneel';
       this.windupTimer = 0;
@@ -175,7 +185,7 @@ export class HollowWarden {
   }
 
   startFinisher() {
-    if (!this.finisherReady || this.finisherPlaying) return false;
+    if (!canStartFinisher(this.finisherReady, this.finisherPlaying, this.dead)) return false;
     this.finisherPlaying = true;
     this.finisherTime = 0;
     return true;
@@ -222,7 +232,10 @@ export class HollowWarden {
       return;
     }
 
-    if (this.burnTimer > 0) { this.burnTimer -= dt; this.hp -= 5 * dt; }
+    if (this.burnTimer > 0) {
+      this.burnTimer -= dt;
+      this.hp -= burnDps(true) * dt;
+    }
     if (this.flashTimer > 0) this.flashTimer -= dt;
     if (this.staggerTimer > 0) this.staggerTimer -= dt;
     this.heartMat.emissiveIntensity = this.flashTimer > 0 ? 6 : 2.4 + Math.sin(elapsed * 3) * 0.5;

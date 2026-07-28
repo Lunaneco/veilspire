@@ -1,4 +1,7 @@
 import * as THREE from 'three';
+import {
+  resolveWispHit, resolveGolemHit, flankWaypoint, burnDps,
+} from './combatMath.js';
 
 // Wisp-fiends: corrupted floating spirits that haunt the forest edge.
 // AI states: patrol -> aggro (approach) -> attack (ranged shadow bolt),
@@ -65,11 +68,17 @@ export class WispFiend {
 
   takeHit(damage, fromDir, knockbackForce = 6) {
     if (this.dead) return;
-    this.hp -= damage;
+    const next = resolveWispHit({
+      hp: this.hp,
+      dead: this.dead,
+      state: this.state,
+      staggerTimer: this.staggerTimer,
+    }, damage);
+    this.hp = next.hp;
     this.flashTimer = 0.15;
-    this.staggerTimer = Math.max(this.staggerTimer, 0.45);
+    this.staggerTimer = next.staggerTimer ?? this.staggerTimer;
     this.knockback.addScaledVector(fromDir, knockbackForce);
-    if (this.hp <= 0) {
+    if (next.dead) {
       this.dead = true;
       this.deathTimer = 0.9;
       this.state = 'dying';
@@ -116,7 +125,7 @@ export class WispFiend {
     // Burn DoT
     if (this.burnTimer > 0) {
       this.burnTimer -= dt;
-      this.hp -= 6 * dt;
+      this.hp -= burnDps(false) * dt;
       if (this.hp <= 0) this.takeHit(0, this._tmp.set(0, 1, 0), 0);
     }
     if (this.flashTimer > 0) this.flashTimer -= dt;
@@ -155,7 +164,30 @@ export class WispFiend {
         moveX /= l; moveZ /= l;
       } else if (this.state === 'aggro') {
         const dir = toPlayer.normalize();
-        if (dist > ATTACK_RANGE) {
+        // Use a nearby golem as cover and move to a side firing position.
+        const cover = this.coverAlly;
+        if (cover && !cover.dead) {
+          const side = ((this.homeX * 3 + this.homeZ) | 0) % 2 === 0 ? 1 : -1;
+          const waypoint = flankWaypoint(
+            this.position.x,
+            this.position.z,
+            cover.position.x,
+            cover.position.z,
+            player.position.x,
+            player.position.z,
+            side,
+          );
+          moveX = waypoint.x - this.position.x;
+          moveZ = waypoint.z - this.position.z;
+          const length = Math.hypot(moveX, moveZ) || 1;
+          if (length > 1.4) {
+            moveX /= length;
+            moveZ /= length;
+          } else {
+            moveX = -dir.z * 0.35;
+            moveZ = dir.x * 0.35;
+          }
+        } else if (dist > ATTACK_RANGE) {
           moveX = dir.x; moveZ = dir.z;
         } else if (dist < ATTACK_RANGE * 0.55) {
           moveX = -dir.x; moveZ = -dir.z; // keep distance
@@ -288,12 +320,16 @@ export class StoneGolem {
 
   takeHit(damage, fromDir, knockbackForce = 6) {
     if (this.dead) return;
-    // Armoured: ranged chip damage halved unless frozen solid
-    const armour = this.frozenTimer > 0 ? 1 : 0.55;
-    this.hp -= damage * armour;
+    const next = resolveGolemHit({
+      hp: this.hp,
+      frozenTimer: this.frozenTimer,
+      dead: this.dead,
+      state: this.state,
+    }, damage);
+    this.hp = next.hp;
     this.flashTimer = 0.15;
     this.knockback.addScaledVector(fromDir, knockbackForce * 0.22); // heavy
-    if (this.hp <= 0) {
+    if (next.dead) {
       this.dead = true;
       this.deathTimer = 1.2;
       this.state = 'dying';
@@ -328,7 +364,10 @@ export class StoneGolem {
       return;
     }
 
-    if (this.burnTimer > 0) { this.burnTimer -= dt; this.hp -= 4 * dt; }
+    if (this.burnTimer > 0) {
+      this.burnTimer -= dt;
+      this.hp -= burnDps(true) * dt;
+    }
     if (this.flashTimer > 0) this.flashTimer -= dt;
     if (this.staggerTimer > 0) this.staggerTimer -= dt;
     this.slamCooldown -= dt;
@@ -429,6 +468,30 @@ export class EnemyManager {
     }
   }
 
+  _assignCover() {
+    const golems = this.enemies.filter(
+      (enemy) => enemy.isGolem && !enemy.dead && !enemy.isBoss,
+    );
+    for (const enemy of this.enemies) {
+      if (enemy.isGolem || enemy.isBoss || enemy.dead) {
+        enemy.coverAlly = null;
+        continue;
+      }
+      let best = null;
+      let bestDistance = 20 * 20;
+      for (const golem of golems) {
+        const dx = enemy.position.x - golem.position.x;
+        const dz = enemy.position.z - golem.position.z;
+        const distance = dx * dx + dz * dz;
+        if (distance < bestDistance) {
+          bestDistance = distance;
+          best = golem;
+        }
+      }
+      enemy.coverAlly = best;
+    }
+  }
+
   // Golem ground slam: shockwave ring, debris, camera kick, radial damage
   golemSlam(origin, radius) {
     this.spells.spawnBurst(origin.clone().setY(origin.y + 0.3), 46, 8, 0xa89880, 1.1);
@@ -462,6 +525,7 @@ export class EnemyManager {
   }
 
   update(dt, elapsed) {
+    this._assignCover();
     const fireBolt = (o, v, owner) => this.fireEnemyBolt(o, v, owner);
     const burst = (p, n, s, c) => this.spells.spawnBurst(p, n, s, c);
     for (let i = this.enemies.length - 1; i >= 0; i--) {

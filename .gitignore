@@ -3,6 +3,7 @@ node_modules/
 dist/
 coverage/
 .vite/
+verify-out/
 
 # Local configuration and secrets
 .env

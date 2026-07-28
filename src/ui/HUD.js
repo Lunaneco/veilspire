@@ -266,6 +266,24 @@ export class HUD {
         setTimeout(() => { if (!this._helpPinned) this.toggleHelp(false); }, 3500);
       }
     });
+
+    if (document.documentElement.classList.contains('touch-ui')
+        || 'ontouchstart' in window
+        || (navigator.maxTouchPoints || 0) > 0) {
+      this.hint.innerHTML =
+        'Touch controls · left stick move · right swipe look<br/>' +
+        '<b>bolt</b> / <b>ward</b> / jump / dodge on the right · spells along the bottom<br/>' +
+        'use = interact · lock · fly · potions on the left';
+      this.hint.style.bottom =
+        'max(120px, calc(env(safe-area-inset-bottom) + 100px))';
+      this.hint.style.maxWidth = '92vw';
+      this.hint.style.fontSize = '13px';
+      this.hint.style.pointerEvents = 'none';
+      const dismiss = () => {
+        if (!this._helpPinned && this._helpOpen) this.toggleHelp(false);
+      };
+      window.addEventListener('touchstart', dismiss, { once: true, passive: true });
+    }
   }
 
   // force: true/false to set explicitly, omitted to flip

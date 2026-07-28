@@ -19,7 +19,11 @@ export class Engine {
     this.renderer = new THREE.WebGLRenderer({
       antialias: !OPTIMIZED, powerPreference: 'high-performance',
     });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, opt(1.5, 2)));
+    // Mobile GPUs pay a steep fill-rate cost at full device pixel ratio.
+    const isCoarsePointer = window.matchMedia?.('(pointer: coarse)').matches
+      || (navigator.maxTouchPoints || 0) > 0;
+    const dprCap = isCoarsePointer ? opt(1.25, 1.5) : opt(1.5, 2);
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, dprCap));
     this.renderer.setSize(container.clientWidth, container.clientHeight);
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;

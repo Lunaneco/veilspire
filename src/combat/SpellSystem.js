@@ -584,8 +584,9 @@ export class SpellSystem {
     this.oathCooldown -= dt;
     this.tetheCooldown -= dt;
     if (this.blessing > 0) this.blessing -= dt;
-    // Arc Bolt: left mouse or Z. Holding a prop, the same input hurls it.
-    const attackHeld = (this.input.isMouseDown(0) && this.input.pointerLocked)
+    // Arc Bolt: desktop LMB requires pointer lock; touch buttons inject KeyZ.
+    const attackHeld = (this.input.isMouseDown(0)
+      && (this.input.pointerLocked || this.input.touchMode))
       || this.input.isDown('KeyZ');
     const attackPressed = this.input.wasMousePressed(0) || this.input.wasPressed('KeyZ');
     if (this.heldProp) {

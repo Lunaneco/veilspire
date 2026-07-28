@@ -1,5 +1,9 @@
 import * as THREE from 'three';
 import { WizardModel } from './WizardModel.js';
+import {
+  SWIM_LEVEL_OFFSET, shouldStartSwim, canToggleFlight, breakFlightOnHit,
+  canStartClimb, shouldMantle, shouldReleaseAtGround, locomotionMode,
+} from './moveModes.js';
 
 // Third-person character controller: walk/sprint/jump/dodge with gravity,
 // terrain + collider collision, camera-relative movement, smooth turning.
@@ -9,7 +13,6 @@ const RUN_SPEED = 8.6;
 const SWIM_SPEED = 3.0;
 const FLY_SPEED = 15.5;
 const FLY_VERT = 8.0;
-const SWIM_LEVEL_OFFSET = 0.45; // body sits this far below the surface
 const ACCEL = 28;
 const JUMP_V = 8.5;
 const GRAVITY = 24;
@@ -98,7 +101,7 @@ export class Player {
         // next probe looks backwards and the grab is lost immediately
         this.facing = Math.atan2(wall.nx, wall.nz);
         // Mantle over the top
-        if (this.position.y > wall.topY - 0.35) {
+        if (shouldMantle(this.position.y, wall.topY)) {
           this.climbing = false;
           this.climbTimer = 0.4;
           // Step forward onto the ledge (nx/nz point into the wall)
@@ -111,7 +114,8 @@ export class Player {
         }
         // Only let go at the bottom when actively climbing down — otherwise
         // grabbing a wall while standing on the ground releases instantly.
-        if (wantDown && this.position.y <= this.world.groundHeight(this.position.x, this.position.z) + 0.05) {
+        const groundY = this.world.groundHeight(this.position.x, this.position.z);
+        if (shouldReleaseAtGround(wantDown, this.position.y, groundY)) {
           this.climbing = false;
         }
         this.model.root.position.copy(this.position);
@@ -119,7 +123,12 @@ export class Player {
         this.model.animate(dt, { mode: 'climb', speed01: wantUp ? 1 : 0 });
         return;
       }
-    } else if (input.wasPressed('Space') && !this.flying && !this.swimming && this.climbTimer <= 0) {
+    } else if (input.wasPressed('Space')
+        && canStartClimb({
+          flying: this.flying,
+          swimming: this.swimming,
+          climbTimer: this.climbTimer,
+        })) {
       const wall = this.findClimbable();
       if (wall) {
         this.climbing = true;
@@ -130,7 +139,8 @@ export class Player {
 
     // Magical flight: G toggles. Cancels swim/dodge, disables gravity.
     if (this.flightLockout > 0) this.flightLockout -= dt;
-    if (input.wasPressed('KeyG') && (this.flying || this.flightLockout <= 0)) {
+    if (input.wasPressed('KeyG')
+        && canToggleFlight(this.flying, this.flightLockout)) {
       this.flying = !this.flying;
       if (this.flying) {
         this.swimming = false;
@@ -145,7 +155,13 @@ export class Player {
     const ground = this.world.groundHeight(this.position.x, this.position.z, this.position.y);
     const waterLevel = this.world.waterLevel;
     const deepWater = ground < waterLevel - 1.1;
-    if (!this.flying && !this.swimming && deepWater && this.position.y < waterLevel - SWIM_LEVEL_OFFSET + 0.05) {
+    if (shouldStartSwim({
+      flying: this.flying,
+      swimming: this.swimming,
+      groundY: ground,
+      waterLevel,
+      y: this.position.y,
+    })) {
       this.swimming = true;
       this.velocity.y = 0;
     } else if (this.swimming && !deepWater) {
@@ -314,9 +330,13 @@ export class Player {
     // back on the ground before you can take off again. Flight stops being
     // a way to ignore a fight.
     if (this.flying) {
-      this.flying = false;
-      this.velocity.y = Math.min(this.velocity.y, -2);
-      this.flightLockout = 1.4;
+      const result = breakFlightOnHit({
+        flying: this.flying,
+        velocityY: this.velocity.y,
+      });
+      this.flying = result.flying;
+      this.velocity.y = result.velocityY;
+      this.flightLockout = result.flightLockout;
       this.onFlightBroken?.();
     }
     if (this.health <= 0) {
@@ -326,5 +346,15 @@ export class Player {
       this.position.y = this.world.groundHeight(21, 37);
       this.velocity.set(0, 0, 0);
     }
+  }
+
+  get moveMode() {
+    return locomotionMode({
+      climbing: this.climbing,
+      flying: this.flying,
+      swimming: this.swimming,
+      grounded: this.grounded,
+      dodgeTimer: this.dodgeTimer,
+    });
   }
 }
