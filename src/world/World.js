@@ -7,6 +7,7 @@ import { Water } from './Water.js';
 import { Settlements } from './Settlements.js';
 import { Cavern, CAVERN } from './Cavern.js';
 import { Classroom, MovingStair } from './Classroom.js';
+import { resolveCapsuleColliders, ledgeHeight } from '../util/collisionMath.js';
 
 // Aggregates all world content and provides collision queries for gameplay.
 
@@ -63,12 +64,11 @@ export class World {
   groundHeight(x, z, fromY = -Infinity) {
     let base = terrainHeight(x, z);
     if (fromY > -Infinity) {
+      const boxes = [];
       for (const c of this.collidersNear(x, z, 1)) {
-        if (c.type !== 'box') continue;
-        const b = c.box;
-        if (x < b.min.x || x > b.max.x || z < b.min.z || z > b.max.z) continue;
-        if (b.max.y > base && b.max.y <= fromY + 0.35) base = b.max.y;
+        if (c.type === 'box' && c.box) boxes.push(c.box);
       }
+      base = ledgeHeight(x, z, fromY, boxes, base);
     }
     const cr = this.classroom;
     if (cr) {
@@ -106,43 +106,12 @@ export class World {
 
   // Push a capsule (foot position + radius) out of colliders. Mutates pos.
   resolveCollisions(pos, radius, height) {
-    for (const c of this.collidersNear(pos.x, pos.z, radius + 2)) {
-      if (c.type === 'cylinder') {
-        if (pos.y > c.topY) continue;
-        const dx = pos.x - c.x, dz = pos.z - c.z;
-        const d = Math.hypot(dx, dz);
-        const minD = c.r + radius;
-        if (d < minD && d > 0.0001) {
-          const push = (minD - d) / d;
-          pos.x += dx * push;
-          pos.z += dz * push;
-        }
-      } else {
-        const b = c.box;
-        if (pos.y > b.max.y || pos.y + height < b.min.y) continue;
-        // Closest point on box XZ
-        const cx = Math.max(b.min.x, Math.min(pos.x, b.max.x));
-        const cz = Math.max(b.min.z, Math.min(pos.z, b.max.z));
-        const dx = pos.x - cx, dz = pos.z - cz;
-        const d = Math.hypot(dx, dz);
-        if (d < radius) {
-          if (d > 0.0001) {
-            const push = (radius - d) / d;
-            pos.x += dx * push;
-            pos.z += dz * push;
-          } else {
-            // Inside the box: push out along smallest axis
-            const pushXPos = b.max.x - pos.x, pushXNeg = pos.x - b.min.x;
-            const pushZPos = b.max.z - pos.z, pushZNeg = pos.z - b.min.z;
-            const minPush = Math.min(pushXPos, pushXNeg, pushZPos, pushZNeg);
-            if (minPush === pushXPos) pos.x = b.max.x + radius;
-            else if (minPush === pushXNeg) pos.x = b.min.x - radius;
-            else if (minPush === pushZPos) pos.z = b.max.z + radius;
-            else pos.z = b.min.z - radius;
-          }
-        }
-      }
-    }
+    resolveCapsuleColliders(
+      pos,
+      radius,
+      height,
+      this.collidersNear(pos.x, pos.z, radius + 2),
+    );
   }
 
   // Camera obstruction: march from target toward desired camera pos, return

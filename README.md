@@ -30,8 +30,11 @@ existing game, film, book, publisher, or entertainment franchise.
   day/night cycle
 - Third-person exploration, swimming, flight, lock-on combat, spells, enemies,
   a boss encounter, quests, dialogue, equipment, crafting, and progression
+- Touch controls with a movement stick, swipe camera, combat buttons, safe-area
+  support, and portrait/landscape phone layouts
 - A north-up valley map with color-coded markers for the player, main and side
   objectives, unopened treasure, and living enemies
+- Harvestable Ember Caps and Frost Leaves for the brewing loop
 - Procedurally synthesized ambience and effects
 - Local-only save data with no account, analytics, advertising, or remote API
 
@@ -40,7 +43,7 @@ existing game, film, book, publisher, or entertainment franchise.
 - Node.js 24 recommended; Node.js 20.19+ within 20.x or Node.js 22.12+ is
   supported
 - npm
-- A modern desktop browser with WebGL 2 support
+- A modern browser with WebGL 2 support
 
 ## Run locally
 
@@ -73,6 +76,7 @@ local verification, not as a production server.
 | Character panel / potions | I / 1 or 2 |
 | Veilbreak | T |
 | Controls panel / profiler | ? or `/` / F3 |
+| Touch devices | Left stick to move, swipe the right side to look, and use the on-screen action/spell buttons |
 
 ## Privacy and security
 

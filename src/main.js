@@ -24,10 +24,13 @@ import { ShopPanel } from './ui/ShopPanel.js';
 import { DialogueRunner, MAELIS_TREE } from './systems/DialogueTree.js';
 import { DialoguePanel } from './ui/DialoguePanel.js';
 import { CharacterPanel } from './ui/CharacterPanel.js';
+import { MobileControls } from './ui/MobileControls.js';
 import { Minimap } from './ui/Minimap.js';
+import { Plants } from './world/Plants.js';
 
 const container = document.getElementById('app');
 const engine = new Engine(container);
+const mobile = new MobileControls(container, engine.input);
 
 const world = new World(engine.scene);
 const player = new Player(engine.scene, world, engine.input, engine.camera);
@@ -93,6 +96,10 @@ const props = new PropManager(engine.scene, world);
 spells.props = props;
 // Hand-placed caches: the gear the shop will never stock
 const caches = new Caches(engine.scene, world, spells, audio);
+const plants = new Plants(engine.scene, world, spells, audio);
+plants.onHarvest = (node) => {
+  hud.toast(`Gathered ${node.itemId === 'emberCap' ? 'Ember Cap' : 'Frost Leaf'}`);
+};
 const boss = new HollowWarden(engine.scene, world, spells, enemies);
 enemies.enemies.push(boss); // spells and lock-on treat it as an enemy
 hud.boss = boss;
@@ -267,6 +274,7 @@ engine.addSystem({
     npcs.update(dt, elapsed, world.sky.timeOfDay, player.position);
     collectibles.update(dt, elapsed);
     caches.update(dt, elapsed);
+    plants.update(dt, elapsed);
     quests.update();
     minimap.update(dt);
     charPanel.update();
@@ -276,6 +284,7 @@ engine.addSystem({
     const nearChest = !cav.looted && player.position.distanceTo(cav.chestPos) < 3.2;
     // A conversation owns the controls, but the world keeps living around it
     engine.input.suspended = dialogue.active || shop.open || charPanel.open;
+    mobile.update();
     if (dialogue.active) {
       dialoguePanel.update();
       hud.setPrompt(null);
@@ -284,15 +293,19 @@ engine.addSystem({
     // Standing over a body or a cache beats everything else you could be doing
     const body = nearChest ? null : npcs.nearestLootable(player.position);
     const cache = (nearChest || body) ? null : caches.nearest(player.position);
-    const professor = (body || cache) ? null : npcs.availableProfessor(player.position);
-    const merchant = (nearChest || body || cache) ? null : npcs.nearestMerchant(player.position);
+    const plant = (nearChest || body || cache) ? null : plants.nearest(player.position);
+    const professor = (body || cache || plant)
+      ? null : npcs.availableProfessor(player.position);
+    const merchant = (nearChest || body || cache || plant)
+      ? null : npcs.nearestMerchant(player.position);
     // Talking to a student takes priority only when nothing else is in reach
-    const speaker = (nearChest || body || cache || merchant)
+    const speaker = (nearChest || body || cache || plant || merchant)
       ? null : npcs.nearestSpeaker(player.position);
     hud.setPrompt(shop.open ? null
       : nearChest ? 'F — open the warded chest'
       : body ? 'F — search the body'
       : cache ? 'F — open the cache'
+      : plant ? 'F — harvest plant'
       : professor ? 'F — speak with Professor Maelis'
       : merchant ? 'F — trade with Bramwell'
       : speaker ? 'F — speak' : null);
@@ -302,6 +315,8 @@ engine.addSystem({
       lootBody(body);
     } else if (cache && engine.input.wasPressed('KeyF')) {
       caches.open(cache, inventory, equipment);
+    } else if (plant && engine.input.wasPressed('KeyF')) {
+      plants.harvest(plant, inventory);
     } else if (professor && engine.input.wasPressed('KeyF')) {
       dialogue.start(MAELIS_TREE);
     } else if (merchant && engine.input.wasPressed('KeyF')) {
@@ -439,7 +454,7 @@ if (import.meta.env.DEV) {
   window.__game = {
     engine, world, player, camera, spells, enemies, npcs, weather, quests, collectibles, audio, hud,
     progression, charPanel, props, inventory, boss, cinematic, worldState,
-    equipment, shop, profiler, dialogue, dialoguePanel, karma, caches,
+    equipment, shop, profiler, dialogue, dialoguePanel, karma, caches, plants, mobile,
     minimap,
     step(n = 1, dt = 1 / 60) {
       for (let i = 0; i < n; i++) engine.tick(dt);
@@ -507,6 +522,8 @@ if (import.meta.env.DEV) {
         dialoguePanel,
         karma,
         caches,
+        plants,
+        mobile,
         dialogueTree: MAELIS_TREE,
       });
     });

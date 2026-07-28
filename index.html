@@ -2,7 +2,13 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+  />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta
     http-equiv="Content-Security-Policy"
     content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; font-src 'self' data:; media-src 'self' blob:; object-src 'none'; base-uri 'none'; form-action 'none'"
@@ -11,9 +17,18 @@
   <title>Veilspire</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    html, body { width: 100%; height: 100%; overflow: hidden; background: #05070d; }
-    #app { width: 100%; height: 100%; }
-    canvas { display: block; }
+    html, body {
+      width: 100%; height: 100%; height: 100dvh; overflow: hidden; background: #05070d;
+      touch-action: none; overscroll-behavior: none;
+      -webkit-text-size-adjust: 100%;
+    }
+    #app {
+      position: fixed; inset: 0;
+      width: 100%; height: 100%; height: 100dvh;
+      min-height: 100svh;
+      overflow: hidden; touch-action: none;
+    }
+    canvas { display: block; width: 100%; height: 100%; touch-action: none; }
   </style>
 </head>
 <body>
