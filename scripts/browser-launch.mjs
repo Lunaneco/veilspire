@@ -73,11 +73,18 @@ try {
 
   const results = [];
   const profiles = [
-    { name: 'desktop', width: 1280, height: 720, mobile: false },
-    { name: 'phone-portrait', width: 390, height: 844, mobile: true },
-    { name: 'phone-landscape', width: 844, height: 390, mobile: true },
-    { name: 'phone-compact-portrait', width: 320, height: 568, mobile: true },
-    { name: 'phone-compact-landscape', width: 568, height: 320, mobile: true },
+    { name: 'desktop', width: 1280, height: 720, mobile: false, touchLayout: false },
+    { name: 'phone-portrait', width: 390, height: 844, mobile: true, touchLayout: true },
+    { name: 'phone-landscape', width: 844, height: 390, mobile: true, touchLayout: true },
+    { name: 'phone-compact-portrait', width: 320, height: 568, mobile: true, touchLayout: true },
+    { name: 'phone-compact-landscape', width: 568, height: 320, mobile: true, touchLayout: true },
+    {
+      name: 'phone-preview-no-touch',
+      width: 390,
+      height: 844,
+      mobile: false,
+      touchLayout: true,
+    },
   ];
 
   for (const profile of profiles) {
@@ -93,8 +100,7 @@ try {
       if (message.type() === 'error') errors.push(message.text());
     });
 
-    const url = profile.mobile ? `${BASE_URL}?mobile=1` : BASE_URL;
-    await page.goto(url, { waitUntil: 'domcontentloaded' });
+    await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
     await page.waitForFunction(() => window.__game?.player, null, {
       timeout: 20000,
     });
@@ -227,7 +233,7 @@ try {
     const pass = errors.length === 0
       && state.title === 'Veilspire'
       && state.hasCanvas
-      && (!profile.mobile || (
+      && (profile.touchLayout ? (
         state.touchMode
         && state.mobileControls
         && state.buttonCount >= 16
@@ -241,7 +247,7 @@ try {
         && state.rendererPixelRatio <= 1.25
         && state.qualityTier === 'MEDIUM'
         && Math.abs(state.viewportHeight - profile.height) <= 1
-      ));
+      ) : !state.mobileControls);
     const screenshot = join(OUTPUT, `${profile.name}.png`);
     await page.screenshot({ path: screenshot });
     results.push({
