@@ -36,6 +36,13 @@ function insideViewport(rect, viewport) {
     && rect.bottom <= viewport.height + 1;
 }
 
+function overlaps(a, b) {
+  return a.left < b.right
+    && a.right > b.left
+    && a.top < b.bottom
+    && a.bottom > b.top;
+}
+
 const require = createRequire(join(ROOT, 'package.json'));
 const { chromium } = require('playwright');
 const server = spawn(
@@ -69,6 +76,8 @@ try {
     { name: 'desktop', width: 1280, height: 720, mobile: false },
     { name: 'phone-portrait', width: 390, height: 844, mobile: true },
     { name: 'phone-landscape', width: 844, height: 390, mobile: true },
+    { name: 'phone-compact-portrait', width: 320, height: 568, mobile: true },
+    { name: 'phone-compact-landscape', width: 568, height: 320, mobile: true },
   ];
 
   for (const profile of profiles) {
@@ -108,14 +117,73 @@ try {
             };
           })
         : [];
+      const groupIds = [
+        'mc-stick-base', 'mc-actions', 'mc-spells', 'mc-utils', 'minimap', 'bars',
+      ];
+      const groups = Object.fromEntries(groupIds.map((id) => {
+        const group = document.getElementById(id);
+        if (!group) return [id, null];
+        const rect = group.getBoundingClientRect();
+        return [id, {
+          left: rect.left,
+          top: rect.top,
+          right: rect.right,
+          bottom: rect.bottom,
+          width: rect.width,
+          height: rect.height,
+        }];
+      }));
       const input = window.__game.engine.input;
-      input.press('KeyZ');
+      const attackButton = document.querySelector('#mc-actions .mc-attack');
+      attackButton?.dispatchEvent(new PointerEvent('pointerdown', {
+        bubbles: true,
+        pointerId: 41,
+        pointerType: 'touch',
+        isPrimary: true,
+      }));
       const injectedAttack = input.wasPressed('KeyZ') && input.isDown('KeyZ');
       input.lateUpdate();
-      const beforeLook = window.__game.camera.yaw;
-      input.addLookDelta(30, 0);
-      window.__game.camera.update(1 / 60);
-      const lookChanged = window.__game.camera.yaw !== beforeLook;
+      const stick = document.querySelector('#mc-stick-zone');
+      const stickRect = document.querySelector('#mc-stick-base')?.getBoundingClientRect();
+      stick?.dispatchEvent(new PointerEvent('pointerdown', {
+        bubbles: true,
+        pointerId: 42,
+        pointerType: 'touch',
+        isPrimary: true,
+        clientX: stickRect ? stickRect.left + stickRect.width / 2 : 0,
+        clientY: stickRect ? stickRect.top + 8 : 0,
+      }));
+      const stickMoved = input.isDown('KeyW');
+      stick?.dispatchEvent(new PointerEvent('pointerup', {
+        bubbles: true,
+        pointerId: 42,
+        pointerType: 'touch',
+        isPrimary: true,
+      }));
+      const look = document.querySelector('#mc-look-zone');
+      look?.dispatchEvent(new PointerEvent('pointerdown', {
+        bubbles: true,
+        pointerId: 43,
+        pointerType: 'touch',
+        isPrimary: true,
+        clientX: innerWidth * 0.7,
+        clientY: innerHeight * 0.3,
+      }));
+      look?.dispatchEvent(new PointerEvent('pointermove', {
+        bubbles: true,
+        pointerId: 43,
+        pointerType: 'touch',
+        isPrimary: true,
+        clientX: innerWidth * 0.7 + 30,
+        clientY: innerHeight * 0.3 + 10,
+      }));
+      const lookChanged = Math.abs(input.mouseDX) > 0 && Math.abs(input.mouseDY) > 0;
+      look?.dispatchEvent(new PointerEvent('pointerup', {
+        bubbles: true,
+        pointerId: 43,
+        pointerType: 'touch',
+        isPrimary: true,
+      }));
       return {
         title: document.title,
         hasCanvas: !!document.querySelector('canvas'),
@@ -124,7 +192,13 @@ try {
         buttonCount: controls.length,
         controls,
         injectedAttack,
+        stickMoved,
         lookChanged,
+        groups,
+        viewportHeight: document.getElementById('app')?.getBoundingClientRect().height,
+        rendererMobile: window.__game.engine.mobileMode,
+        rendererPixelRatio: window.__game.engine.renderer.getPixelRatio(),
+        qualityTier: window.__game.profiler.tierName,
         minimapRotation: playerMarker?.style
           .getPropertyValue('--player-rotation'),
       };
@@ -133,6 +207,21 @@ try {
     const controlsInside = state.controls.every(
       (rect) => insideViewport(rect, profile),
     );
+    const layoutPairs = [
+      ['mc-stick-base', 'mc-spells'],
+      ['mc-stick-base', 'bars'],
+      ['mc-actions', 'mc-spells'],
+      ['mc-actions', 'minimap'],
+      ['minimap', 'mc-utils'],
+    ];
+    const layoutOverlaps = layoutPairs.filter(([a, b]) => {
+      const first = state.groups[a];
+      const second = state.groups[b];
+      return first && second && overlaps(first, second);
+    });
+    const groupsInside = Object.values(state.groups)
+      .filter(Boolean)
+      .every((rect) => insideViewport(rect, profile));
     const overflowingControls = state.controls
       .filter((rect) => !insideViewport(rect, profile));
     const pass = errors.length === 0
@@ -143,8 +232,15 @@ try {
         && state.mobileControls
         && state.buttonCount >= 16
         && controlsInside
+        && groupsInside
+        && layoutOverlaps.length === 0
         && state.injectedAttack
+        && state.stickMoved
         && state.lookChanged
+        && state.rendererMobile
+        && state.rendererPixelRatio <= 1.25
+        && state.qualityTier === 'MEDIUM'
+        && Math.abs(state.viewportHeight - profile.height) <= 1
       ));
     const screenshot = join(OUTPUT, `${profile.name}.png`);
     await page.screenshot({ path: screenshot });
@@ -153,11 +249,14 @@ try {
       viewport: { width: profile.width, height: profile.height },
       pass,
       controlsInside,
+      groupsInside,
+      layoutOverlaps,
       overflowingControls,
       errors,
       state: {
         ...state,
         controls: undefined,
+        groups: undefined,
       },
       screenshot,
     });

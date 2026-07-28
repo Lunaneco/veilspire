@@ -13,17 +13,22 @@ import { OPTIMIZED, opt } from '../util/perfFlags.js';
 export class Engine {
   constructor(container) {
     this.container = container;
+    const forcedMobile = new URLSearchParams(window.location.search).get('mobile') === '1';
+    this.mobileMode = forcedMobile
+      || window.matchMedia?.('(pointer: coarse)').matches
+      || (navigator.maxTouchPoints || 0) > 0;
     // No MSAA: everything is drawn into the composer's own render target and
     // only a fullscreen quad ever reaches the canvas, so a multisampled
     // backbuffer would cost memory and bandwidth to antialias nothing.
     this.renderer = new THREE.WebGLRenderer({
-      antialias: !OPTIMIZED, powerPreference: 'high-performance',
+      antialias: !OPTIMIZED && !this.mobileMode,
+      powerPreference: 'high-performance',
     });
     // Mobile GPUs pay a steep fill-rate cost at full device pixel ratio.
-    const isCoarsePointer = window.matchMedia?.('(pointer: coarse)').matches
-      || (navigator.maxTouchPoints || 0) > 0;
-    const dprCap = isCoarsePointer ? opt(1.25, 1.5) : opt(1.5, 2);
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, dprCap));
+    this.maxPixelRatio = this.mobileMode ? opt(1.25, 1.5) : opt(1.5, 2);
+    this.renderer.setPixelRatio(
+      Math.min(window.devicePixelRatio || 1, this.maxPixelRatio),
+    );
     this.renderer.setSize(container.clientWidth, container.clientHeight);
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -56,6 +61,7 @@ export class Engine {
     this.elapsed = 0;
 
     window.addEventListener('resize', () => this.onResize());
+    window.visualViewport?.addEventListener('resize', () => this.onResize());
   }
 
   // The composer's targets are sized in drawing-buffer pixels, so they have to
@@ -69,7 +75,11 @@ export class Engine {
   }
 
   setPixelRatio(ratio) {
-    const want = Math.min(window.devicePixelRatio, ratio);
+    const want = Math.min(
+      window.devicePixelRatio || 1,
+      ratio,
+      this.maxPixelRatio,
+    );
     if (Math.abs(this.renderer.getPixelRatio() - want) < 0.001) return;
     this.renderer.setPixelRatio(want);
     this._resizeTargets();

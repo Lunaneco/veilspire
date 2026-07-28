@@ -19,9 +19,10 @@ export class Profiler {
     this.cursor = 0;
     this.filled = 0;
     this.visible = false;
-    // Start one tier down: a 4K-class display would otherwise spend the first
-    // three seconds rendering 2x pixels before the governor notices.
-    this.tier = OPTIMIZED ? 1 : 0;
+    // Phones start at medium and never climb to ultra. They are constrained by
+    // fill rate and thermals long before a desktop-class scene becomes costly.
+    this.bestTier = engine.mobileMode ? 1 : 0;
+    this.tier = engine.mobileMode ? 2 : (OPTIMIZED ? 1 : 0);
     this.autoQuality = true;
     this.budgetMs = opt(15, 20);   // 15ms leaves room inside a 60fps frame
     this.headroomMs = opt(9, 11);  // step back up below this
@@ -82,7 +83,7 @@ export class Profiler {
           this.tier++;
           this.applyTier(renderer, bloomPass);
           this.settleTimer = 3;
-        } else if (avg < this.headroomMs && this.tier > 0) {
+        } else if (avg < this.headroomMs && this.tier > this.bestTier) {
           this.tier--;
           this.applyTier(renderer, bloomPass);
           this.settleTimer = 5; // slower to climb than to drop

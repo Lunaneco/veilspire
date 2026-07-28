@@ -309,11 +309,11 @@ export class Minimap {
         <div class="objective-distance"></div>
       </div>
       <div class="map-legend" aria-label="Map marker legend">
-        <span class="legend-item"><i class="legend-swatch" style="--swatch:#9fdcff"></i>YOU</span>
-        <span class="legend-item"><i class="legend-swatch" style="--swatch:#f0ca78"></i>MAIN</span>
-        <span class="legend-item side"><i class="legend-swatch" style="--swatch:#bca4ff"></i>SIDE</span>
-        <span class="legend-item treasure"><i class="legend-swatch" style="--swatch:#63d8e8"></i>TREASURE</span>
-        <span class="legend-item"><i class="legend-swatch" style="--swatch:#ef6b58"></i>ENEMY</span>
+        <span class="legend-item" data-short="Y"><i class="legend-swatch" style="--swatch:#9fdcff"></i>YOU</span>
+        <span class="legend-item" data-short="M"><i class="legend-swatch" style="--swatch:#f0ca78"></i>MAIN</span>
+        <span class="legend-item side" data-short="S"><i class="legend-swatch" style="--swatch:#bca4ff"></i>SIDE</span>
+        <span class="legend-item treasure" data-short="T"><i class="legend-swatch" style="--swatch:#63d8e8"></i>TREASURE</span>
+        <span class="legend-item" data-short="E"><i class="legend-swatch" style="--swatch:#ef6b58"></i>ENEMY</span>
       </div>
     `;
     container.appendChild(el);

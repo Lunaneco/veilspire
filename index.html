@@ -18,11 +18,16 @@
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body {
-      width: 100%; height: 100%; overflow: hidden; background: #05070d;
+      width: 100%; height: 100%; height: 100dvh; overflow: hidden; background: #05070d;
       touch-action: none; overscroll-behavior: none;
       -webkit-text-size-adjust: 100%;
     }
-    #app { width: 100%; height: 100%; position: relative; touch-action: none; }
+    #app {
+      position: fixed; inset: 0;
+      width: 100%; height: 100%; height: 100dvh;
+      min-height: 100svh;
+      overflow: hidden; touch-action: none;
+    }
     canvas { display: block; width: 100%; height: 100%; touch-action: none; }
   </style>
 </head>

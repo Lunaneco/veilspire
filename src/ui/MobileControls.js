@@ -36,6 +36,7 @@ export class MobileControls {
     };
     this._manualSprint = false;
     this._manualWard = false;
+    this._wasSuspended = false;
 
     if (!this.enabled) return;
 
@@ -49,8 +50,12 @@ export class MobileControls {
     el.innerHTML = `
       <style>
         #mobile-controls {
-          position: absolute;
+          position: fixed;
           inset: 0;
+          width: 100vw;
+          height: 100%;
+          height: 100dvh;
+          overflow: hidden;
           z-index: 40;
           pointer-events: none;
           color: #e8f0fa;
@@ -263,6 +268,14 @@ export class MobileControls {
           max-width: 68vw;
           font-size: 14px;
         }
+        html.touch-ui #hud #toast {
+          top: max(64px, calc(env(safe-area-inset-top) + 54px));
+          right: auto;
+          left: 50%;
+          max-width: 52vw;
+          transform: translateX(-50%);
+          text-align: center;
+        }
         html.touch-ui #hud #title {
           top: max(10px, env(safe-area-inset-top));
           font-size: 16px;
@@ -321,7 +334,10 @@ export class MobileControls {
         html.touch-ui #shopsheet {
           width: min(960px, calc(100vw - env(safe-area-inset-left) - env(safe-area-inset-right) - 16px));
           max-height: calc(100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 16px);
+          max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 16px);
           padding: 18px 16px;
+          overscroll-behavior: contain;
+          -webkit-overflow-scrolling: touch;
         }
         html.touch-ui #charsheet .trees {
           grid-template-columns: 1fr;
@@ -330,43 +346,136 @@ export class MobileControls {
 
         @media (orientation: portrait), (max-width: 520px) {
           #mc-stick-base {
-            width: 112px;
-            height: 112px;
+            left: max(12px, env(safe-area-inset-left));
+            bottom: max(74px, calc(env(safe-area-inset-bottom) + 66px));
+            width: 104px;
+            height: 104px;
           }
           #mc-actions {
-            grid-template-columns: repeat(3, 52px);
-            gap: 7px;
+            right: max(8px, env(safe-area-inset-right));
+            bottom: max(76px, calc(env(safe-area-inset-bottom) + 68px));
+            grid-template-columns: repeat(3, 48px);
+            gap: 6px;
           }
-          .mc-btn { width: 52px; height: 52px; font-size: 10px; }
-          .mc-btn.primary { width: 60px; height: 60px; }
-          #mc-utils { gap: 6px; }
-          .mc-util { width: 42px; height: 42px; }
+          .mc-btn { width: 48px; height: 48px; font-size: 9px; }
+          .mc-btn .g { font-size: 16px; }
+          .mc-btn.primary { width: 54px; height: 54px; }
+          #mc-utils {
+            top: max(48px, calc(env(safe-area-inset-top) + 40px));
+            left: max(7px, env(safe-area-inset-left));
+            gap: 5px;
+          }
+          .mc-util {
+            width: 38px;
+            height: 38px;
+            border-radius: 10px;
+            font-size: 8px;
+          }
+          .mc-util .g { font-size: 13px; }
           #mc-spells {
             max-width: calc(100vw - env(safe-area-inset-left) - env(safe-area-inset-right) - 8px);
-            gap: 4px;
+            bottom: max(4px, env(safe-area-inset-bottom));
+            gap: 3px;
             padding-inline: 4px;
           }
           .mc-spell {
-            min-width: 44px;
-            width: 44px;
+            min-width: 42px;
+            width: 42px;
+            height: 46px;
             padding-inline: 3px;
-            font-size: 9px;
+            border-radius: 10px;
+            font-size: 8px;
           }
+          .mc-spell .g { font-size: 14px; }
           #mc-look-zone::after { display: none; }
+          html.touch-ui #hud #bars {
+            left: max(12px, env(safe-area-inset-left));
+            bottom: max(220px, calc(env(safe-area-inset-bottom) + 204px));
+          }
+          html.touch-ui #hud #bars .bar {
+            width: min(168px, 43vw);
+            height: 9px;
+          }
+          html.touch-ui #hud #levelbadge {
+            left: max(12px, env(safe-area-inset-left));
+            bottom: max(254px, calc(env(safe-area-inset-bottom) + 238px));
+            font-size: 12px;
+          }
+          html.touch-ui #hud #karma {
+            left: max(12px, env(safe-area-inset-left));
+            bottom: max(276px, calc(env(safe-area-inset-bottom) + 260px));
+            width: min(168px, 43vw);
+          }
+          html.touch-ui #hud #prompt {
+            bottom: max(222px, calc(env(safe-area-inset-bottom) + 206px));
+            max-width: 54vw;
+            font-size: 12px;
+          }
+          html.touch-ui #hud #title {
+            max-width: 48vw;
+            overflow: hidden;
+            font-size: 14px;
+            letter-spacing: 5px;
+            white-space: nowrap;
+          }
+          html.touch-ui #hud #toast {
+            max-width: 42vw;
+            padding: 7px 10px;
+            font-size: 11px;
+          }
           html.touch-ui #minimap {
-            width: 122px;
+            top: max(48px, calc(env(safe-area-inset-top) + 40px));
+            right: max(7px, env(safe-area-inset-right));
+            width: 106px;
           }
           html.touch-ui #minimap .map-surface {
-            width: 122px;
-            height: 122px;
+            width: 106px;
+            height: 106px;
+          }
+          html.touch-ui #minimap .map-head {
+            margin: 0 3px 3px;
+            font-size: 7px;
+            letter-spacing: 1.2px;
+          }
+          html.touch-ui #minimap .map-foot {
+            margin-top: 4px;
+            padding: 4px 6px 5px;
+          }
+          html.touch-ui #minimap .objective-kicker {
+            margin-bottom: 1px;
+            font-size: 6.5px;
+            letter-spacing: 1.2px;
+          }
+          html.touch-ui #minimap .objective-name {
+            font-size: 9px;
+          }
+          html.touch-ui #minimap .objective-distance {
+            margin-top: 1px;
+            font-size: 7.5px;
           }
           html.touch-ui #minimap .map-legend {
-            grid-template-columns: repeat(2, max-content);
+            grid-template-columns: repeat(5, 1fr);
+            gap: 0;
+            margin-top: 4px;
+            font-size: 0;
+          }
+          html.touch-ui #minimap .legend-item {
+            justify-content: center;
+            gap: 0;
+          }
+          html.touch-ui #minimap .legend-item::after {
+            content: attr(data-short);
+            margin-left: 2px;
+            font-size: 5px;
           }
           html.touch-ui #hud #bossbar { width: 74vw; }
           html.touch-ui #hud #banner .btitle {
-            font-size: 25px;
-            letter-spacing: 7px;
+            font-size: 21px;
+            letter-spacing: 5px;
+          }
+          html.touch-ui #charsheet,
+          html.touch-ui #shopsheet {
+            padding: 14px 12px;
           }
         }
 
@@ -398,6 +507,15 @@ export class MobileControls {
           html.touch-ui #hud #levelbadge {
             bottom: max(160px, calc(env(safe-area-inset-bottom) + 144px));
           }
+          html.touch-ui #hud #karma {
+            bottom: max(180px, calc(env(safe-area-inset-bottom) + 164px));
+          }
+          html.touch-ui #hud #toast {
+            top: max(48px, calc(env(safe-area-inset-top) + 40px));
+            max-width: 38vw;
+            padding: 6px 9px;
+            font-size: 10px;
+          }
           html.touch-ui #minimap {
             top: max(50px, calc(env(safe-area-inset-top) + 40px));
             width: 116px;
@@ -411,6 +529,23 @@ export class MobileControls {
           }
           html.touch-ui #minimap .map-legend { display: none; }
           #mc-look-zone::after { display: none; }
+        }
+
+        @media (orientation: landscape) and (max-height: 360px) {
+          #mc-stick-base { width: 92px; height: 92px; }
+          #mc-actions {
+            bottom: max(56px, calc(env(safe-area-inset-bottom) + 48px));
+            grid-template-columns: repeat(3, 44px);
+            gap: 4px;
+          }
+          .mc-btn { width: 44px; height: 44px; font-size: 8px; }
+          .mc-btn.primary { width: 50px; height: 50px; }
+          .mc-util { width: 36px; height: 34px; }
+          .mc-spell { min-width: 40px; width: 40px; height: 38px; font-size: 8px; }
+          html.touch-ui #hud #bars { bottom: 106px; }
+          html.touch-ui #hud #levelbadge { bottom: 138px; }
+          html.touch-ui #minimap { width: 100px; }
+          html.touch-ui #minimap .map-surface { width: 100px; height: 100px; }
         }
       </style>
 
@@ -462,6 +597,12 @@ export class MobileControls {
     document.addEventListener('gesturestart', (event) => event.preventDefault(), {
       passive: false,
     });
+    const reset = () => this._resetControls();
+    window.addEventListener('blur', reset);
+    window.addEventListener('orientationchange', reset);
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) reset();
+    });
   }
 
   _bindStick() {
@@ -470,7 +611,12 @@ export class MobileControls {
       if (this._stick.active) return;
       this._stick.active = true;
       this._stick.id = event.pointerId;
-      this.stickZone.setPointerCapture?.(event.pointerId);
+      try {
+        this.stickZone.setPointerCapture?.(event.pointerId);
+      } catch {
+        // Some embedded WebViews report a pointer after it is no longer
+        // capturable. Movement still works while it remains over the zone.
+      }
       const rect = this.stickBase.getBoundingClientRect();
       this._stick.ox = rect.left + rect.width / 2;
       this._stick.oy = rect.top + rect.height / 2;
@@ -531,7 +677,11 @@ export class MobileControls {
       this._look.id = event.pointerId;
       this._look.x = event.clientX;
       this._look.y = event.clientY;
-      this.lookZone.setPointerCapture?.(event.pointerId);
+      try {
+        this.lookZone.setPointerCapture?.(event.pointerId);
+      } catch {
+        // Keep swipe look working in WebViews without reliable capture.
+      }
       event.preventDefault();
     });
     this.lookZone.addEventListener('pointermove', (event) => {
@@ -576,7 +726,11 @@ export class MobileControls {
         button.classList.add('held');
         if (code === 'ShiftLeft') this._manualSprint = true;
         if (code === 'KeyX') this._manualWard = true;
-        button.setPointerCapture?.(event.pointerId);
+        try {
+          button.setPointerCapture?.(event.pointerId);
+        } catch {
+          // Releasing on pointercancel still clears the held action.
+        }
         navigator.vibrate?.(8);
       };
       const up = (event) => {
@@ -592,16 +746,31 @@ export class MobileControls {
     }
   }
 
+  _resetControls() {
+    this._stick.active = false;
+    this._stick.id = null;
+    this._stick.nx = 0;
+    this._stick.ny = 0;
+    this._look.active = false;
+    this._look.id = null;
+    this._manualSprint = false;
+    this._manualWard = false;
+    for (const code of HELD_KEYS) this.input.release(code);
+    this.stickKnob.style.transform = 'translate(0, 0)';
+    this.stickBase.classList.remove('active');
+    for (const button of this.root.querySelectorAll('.held')) {
+      button.classList.remove('held');
+    }
+  }
+
   update() {
     if (!this.enabled) return;
-    this.root.classList.toggle('suspended', !!this.input.suspended);
+    const suspended = !!this.input.suspended;
+    this.root.classList.toggle('suspended', suspended);
+    if (suspended && !this._wasSuspended) this._resetControls();
+    this._wasSuspended = suspended;
     if (this.input.suspended) {
-      for (const code of HELD_KEYS) {
-        if (code === 'ShiftLeft' && this._manualSprint) continue;
-        if (code === 'KeyX' && this._manualWard) continue;
-        this.input.release(code);
-      }
-      this.stickKnob.style.transform = 'translate(0, 0)';
+      for (const code of HELD_KEYS) this.input.release(code);
     } else if (this._stick.active) {
       this._applyStickKeys(this._stick.nx, this._stick.ny);
     }
