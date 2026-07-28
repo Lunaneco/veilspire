@@ -106,7 +106,77 @@ try {
     });
     await page.evaluate(() => window.__game.step(30, 1 / 60));
 
-    const state = await page.evaluate(() => {
+    const state = await page.evaluate((checkRespawn) => {
+      let respawn = null;
+      if (checkRespawn) {
+        const game = window.__game;
+        const retainedState = () => ({
+          progression: {
+            level: game.progression.level,
+            xp: game.progression.xp,
+            points: game.progression.points,
+            ranks: { ...game.progression.ranks },
+          },
+          equipment: {
+            owned: [...game.equipment.owned].sort(),
+            equipped: { ...game.equipment.equipped },
+          },
+          inventory: {
+            slots: { ...game.inventory.slots },
+            crowns: game.inventory.crowns,
+          },
+          world: {
+            flags: { ...game.worldState.flags },
+            shardsFound: game.worldState.shardsFound,
+            wispsSlain: game.worldState.wispsSlain,
+          },
+        });
+        game.progression.addXp(game.progression.xpForNext(), 'respawn-check');
+        game.progression.spend('atk1');
+        game.equipment.grant('wandHollow');
+        game.equipment.equip('wandHollow');
+        game.inventory.add('emberCap', 2);
+        game.inventory.addCrowns(77);
+        game.worldState.set('questAccepted');
+        const retainedBefore = retainedState();
+        game.karma.praise(24, 'respawn-check');
+        game.karma.sin(70, 'respawn-check');
+        game.player.position.set(180, 40, -90);
+        game.player.velocity.set(3, -5, 2);
+        game.player.health = 1;
+        game.player.mana = 2;
+        game.player.flying = true;
+        game.player.climbing = true;
+        game.player.swimming = true;
+        game.player.takeDamage(1);
+        const savedKarma = JSON.parse(
+          localStorage.getItem('veilspire.karma.v1') || 'null',
+        );
+        const atStart = Math.abs(game.player.position.x - game.player.startPosition.x) < 0.001
+          && Math.abs(game.player.position.y - game.player.startPosition.y) < 0.001
+          && Math.abs(game.player.position.z - game.player.startPosition.z) < 0.001;
+        respawn = {
+          atStart,
+          fullHealth: game.player.health === game.player.maxHealth,
+          fullMana: game.player.mana === game.player.maxMana,
+          movementReset: game.player.velocity.lengthSq() === 0
+            && !game.player.flying
+            && !game.player.climbing
+            && !game.player.swimming
+            && game.player.grounded,
+          infamyReset: game.karma.infamy === 0
+            && game.karma.peakInfamy === 0
+            && !game.karma.outlawed,
+          virtueRetained: game.karma.virtue === 24,
+          progressionRetained: JSON.stringify(retainedState())
+            === JSON.stringify(retainedBefore),
+          persisted: savedKarma?.infamy === 0
+            && savedKarma?.peakInfamy === 0
+            && savedKarma?.outlawed === false
+            && savedKarma?.virtue === 24,
+        };
+        respawn.pass = Object.values(respawn).every(Boolean);
+      }
       const controlRoot = document.querySelector('#mobile-controls');
       const playerMarker = document.querySelector('.player-marker');
       const controls = controlRoot
@@ -207,8 +277,9 @@ try {
         qualityTier: window.__game.profiler.tierName,
         minimapRotation: playerMarker?.style
           .getPropertyValue('--player-rotation'),
+        respawn,
       };
-    });
+    }, profile.name === 'desktop');
 
     const controlsInside = state.controls.every(
       (rect) => insideViewport(rect, profile),
@@ -233,6 +304,7 @@ try {
     const pass = errors.length === 0
       && state.title === 'Veilspire'
       && state.hasCanvas
+      && (!state.respawn || state.respawn.pass)
       && (profile.touchLayout ? (
         state.touchMode
         && state.mobileControls
