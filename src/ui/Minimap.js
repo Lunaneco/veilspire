@@ -27,6 +27,13 @@ function setMapPosition(el, x, z) {
   el.style.top = `${mapPercent(z)}%`;
 }
 
+export function playerMarkerRotation(facing) {
+  // CSS rotation is clockwise, while the player's yaw increases from south
+  // toward east in world space. Mirror the yaw so east points right and west
+  // points left on this north-up map.
+  return 180 - (facing * 180) / Math.PI;
+}
+
 export class Minimap {
   constructor(container, {
     player, worldState, quests, npcs, enemies, boss, caches, collectibles, cavern,
@@ -335,7 +342,7 @@ export class Minimap {
   update(dt = 1 / 60) {
     const { x, z } = this.player.position;
     setMapPosition(this.playerMarker, x, z);
-    const rotation = (this.player.facing * 180) / Math.PI - 180;
+    const rotation = playerMarkerRotation(this.player.facing);
     this.playerMarker.style.setProperty('--player-rotation', `${rotation.toFixed(1)}deg`);
 
     this._worldMarkerTimer -= dt;
