@@ -19,7 +19,7 @@
     "verify:browser": "node scripts/browser-launch.mjs"
   },
   "dependencies": {
-    "three": "^0.185.1"
+    "three": "^0.186.1"
   },
   "devDependencies": {
     "playwright": "^1.62.0",
